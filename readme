@@ -1,0 +1,58 @@
+Як використовувати:
+
+Налаштування:
+
+Відкрийте файл SonarStatsRetriever.java.
+Знайдіть рядки:
+Java
+
+private static final String SONARQUBE_URL = "YOUR_SONARQUBE_URL";
+private static final String SONARQUBE_TOKEN = "YOUR_SONARQUBE_TOKEN";
+Замініть "YOUR_SONARQUBE_URL" на URL-адресу вашого сервера SonarQube (наприклад, "http://localhost:9000" або "https://sonarqube.yourcompany.com").
+Замініть "YOUR_SONARQUBE_TOKEN" на ваш актуальний токен доступу до SonarQube. Ви можете згенерувати токен в інтерфейсі SonarQube (My Account -> Security -> Generate Tokens).
+За потреби ви можете змінити список метрик у масиві METRIC_KEYS_ARRAY.
+Структура проєкту:
+Створіть таку структуру каталогів:
+
+sonar-stats-retriever/
+├── pom.xml
+└── src/
+    └── main/
+        └── java/
+            └── com/
+                └── example/
+                    └── sonarstats/
+                        └── SonarStatsRetriever.java
+Помістіть надані файли pom.xml та SonarStatsRetriever.java у відповідні місця.
+
+Збірка проєкту:
+
+Відкрийте термінал або командний рядок.
+Перейдіть до кореневого каталогу проєкту (sonar-stats-retriever).
+Виконайте команду Maven для збірки:
+Bash
+
+mvn clean package
+Це створить виконуваний JAR-файл у каталозі target/, наприклад, sonar-stats-retriever-1.0-SNAPSHOT-jar-with-dependencies.jar.
+Запуск:
+
+Після успішної збірки запустіть JAR-файл з командного рядка:
+Bash
+
+java -jar target/sonar-stats-retriever-1.0-SNAPSHOT-jar-with-dependencies.jar
+Результат (статистика у форматі CSV) буде виведено у консоль. Ви можете перенаправити вивід у файл, якщо потрібно:
+Bash
+
+java -jar target/sonar-stats-retriever-1.0-SNAPSHOT-jar-with-dependencies.jar > sonar_stats.csv
+Метрики, що збираються:
+
+Програма збирає наступні метрики (ви можете налаштувати список METRIC_KEYS_ARRAY):
+
+Загальні: bugs, vulnerabilities, code_smells, coverage (покриття у %), duplicated_lines_density (щільність дубльованих рядків у %), sqale_debt_ratio (відношення технічного боргу у %), security_rating (рейтинг безпеки), reliability_rating (рейтинг надійності), sqale_rating (рейтинг підтримки).
+Для нового коду: new_bugs, new_vulnerabilities, new_code_smells, new_coverage (покриття нового коду у %), new_duplicated_lines_density (щільність дубльованих рядків у новому коді у %), new_sqale_debt_ratio (відношення технічного боргу для нового коду у %).
+Важливі примітки:
+
+Цей інструмент використовує java.net.http.HttpClient, який доступний у Java 11 та новіших версіях. Переконайтеся, що у вас встановлена відповідна версія JDK.
+Обробка помилок є базовою. Для виробничого використання може знадобитися більш надійна обробка.
+Пагінація для списку проєктів реалізована для обробки великої кількості проєктів.
+Якщо у назвах проєктів або значеннях метрик є коми або лапки, вони будуть екрановані відповідно до стандарту CSV.
