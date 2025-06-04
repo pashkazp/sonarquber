@@ -3,12 +3,19 @@ package com.example.sonarstats;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -37,10 +44,63 @@ public class SonarStatsRetriever {
 
     private final HttpClient httpClient;
 
+    // TrustManager, який довіряє всім сертифікатам (НЕБЕЗПЕЧНО для виробництва)
+    private static final TrustManager[] TRUST_ALL_CERTS = new TrustManager[]{
+        new X509TrustManager() {
+            @Override
+            public void checkClientTrusted(X509Certificate[] chain, String authType) {
+                // Довіряти всім клієнтським сертифікатам
+            }
+
+            @Override
+            public void checkServerTrusted(X509Certificate[] chain, String authType) {
+                // Довіряти всім серверним сертифікатам
+            }
+
+            @Override
+            public X509Certificate[] getAcceptedIssuers() {
+                return new X509Certificate[]{}; // Повернути порожній масив
+            }
+        }
+    };
+
     public SonarStatsRetriever() {
-        this.httpClient = HttpClient.newBuilder()
+        HttpClient client = null;
+        try {
+            // Створення SSLContext, який довіряє всім сертифікатам
+            SSLContext sslContext = SSLContext.getInstance("TLS"); // Або "SSL"
+            sslContext.init(null, TRUST_ALL_CERTS, new SecureRandom());
+
+            // Створення HttpClient з налаштованим SSLContext
+            // Також вимикаємо перевірку імені хоста (hostname verification), якщо це необхідно
+            // для самопідписаних сертифікатів, де ім'я хоста може не збігатися.
+            // Для java.net.http.HttpClient це робиться через SSLParameters,
+            // але використання TrustAllManager часто є достатнім для обходу перевірок.
+            // Якщо проблеми залишаються, можна спробувати налаштувати SSLParameters:
+            // SSLParameters sslParams = new SSLParameters();
+            // sslParams.setEndpointIdentificationAlgorithm(""); // Вимикає перевірку імені хоста
+            // client = HttpClient.newBuilder()
+            // .version(HttpClient.Version.HTTP_1_1)
+            // .sslContext(sslContext)
+            // .sslParameters(sslParams) 
+            // .build();
+
+            client = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .sslContext(sslContext)
+                .build();
+
+            System.out.println("ПОПЕРЕДЖЕННЯ: HttpClient налаштовано довіряти ВСІМ SSL-сертифікатам. Це НЕБЕЗПЕЧНО для виробничих середовищ.");
+
+        } catch (NoSuchAlgorithmException | KeyManagementException e) {
+            System.err.println("ПОМИЛКА: Не вдалося налаштувати SSLContext для довіри всім сертифікатам. Використовується стандартний HttpClient.");
+            e.printStackTrace();
+            // Відкат до стандартного HttpClient у разі помилки
+            client = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .build();
+        }
+        this.httpClient = client;
     }
 
     /**
@@ -121,17 +181,6 @@ public class SonarStatsRetriever {
                 page++; // Перехід на наступну сторінку
             }
             
-            // Перевірка пагінації (якщо загальна кількість відома)
-            // JSONObject paging = jsonResponse.optJSONObject("paging");
-            // if (paging != null) {
-            //     int total = paging.getInt("total");
-            //     if (page * pageSize >= total) {
-            //         moreProjects = false;
-            //     }
-            // } else if (components.length() < pageSize) { 
-            //    // Якщо paging не надано, але отримано менше елементів, ніж розмір сторінки
-            //    moreProjects = false;
-            // }
              if (components.length() < pageSize) { // Простіша перевірка, якщо paging не використовується активно
                 moreProjects = false;
             }
