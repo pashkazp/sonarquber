@@ -12,6 +12,14 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,8 +43,35 @@ public class SonarMetricsFetcher {
     private final HttpClient client;
     private final ObjectMapper mapper = new ObjectMapper();
 
+    private static final X509TrustManager TRUST_ALL_CERTS = new X509TrustManager() {
+        @Override
+        public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) {
+        }
+
+        @Override
+        public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) {
+        }
+
+        @Override
+        public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+            return new java.security.cert.X509Certificate[0];
+        }
+    };
+
     public SonarMetricsFetcher() {
-        client = HttpClient.newHttpClient();
+        SSLContext sslContext;
+        try {
+            sslContext = SSLContext.getInstance("SSL");
+            sslContext.init(null, new TrustManager[]{TRUST_ALL_CERTS}, new SecureRandom());
+        } catch (NoSuchAlgorithmException | KeyManagementException e) {
+            throw new RuntimeException("Failed to init SSL context", e);
+        }
+        SSLParameters params = new SSLParameters();
+        params.setEndpointIdentificationAlgorithm("");
+        client = HttpClient.newBuilder()
+                .sslContext(sslContext)
+                .sslParameters(params)
+                .build();
     }
 
     private String authHeader() {
